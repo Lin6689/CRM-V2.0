@@ -13,10 +13,17 @@ const invoiceSchema = new mongoose.Schema(
       },
     ],
     subtotal: { type: Number, required: true },
-    taxRate: { type: Number, default: 0 }, // percentage
+    taxRate: { type: Number, default: 0 },
     taxAmount: { type: Number, default: 0 },
     grandTotal: { type: Number, required: true },
-    status: { type: String, enum: ["Paid", "Pending"], default: "Pending" },
+    amountPaid: { type: Number, default: 0 },
+    balanceDue: { type: Number, default: 0 },
+    dueDate: { type: Date, default: null },
+    status: {
+      type: String,
+      enum: ["Paid", "Partial", "Pending", "Overdue", "Cancelled"],
+      default: "Pending",
+    },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

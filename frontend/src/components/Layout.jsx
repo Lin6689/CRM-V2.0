@@ -10,6 +10,8 @@ export default function Layout() {
   const [shop, setShop] = useState({ businessName: "", address: "" });
   const [error, setError] = useState("");
 
+  const isAdmin = user?.role === "admin";
+
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -45,7 +47,9 @@ export default function Layout() {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="font-bold text-lg">{user?.businessName || "Mini CRM"}</h1>
-            <p className="text-xs text-gray-500">{user?.name} • {user?.email}</p>
+            <p className="text-xs text-gray-500">
+              {user?.name} • {user?.email} • <span className="capitalize">{user?.role}</span>
+            </p>
           </div>
           <div className="flex gap-4 items-center">
             <button onClick={openEdit} className="text-sm text-blue-600 hover:underline">
@@ -57,9 +61,11 @@ export default function Layout() {
           </div>
         </div>
         <nav className="max-w-6xl mx-auto px-4 flex gap-4">
+          {isAdmin && <NavLink to="/dashboard" className={linkClass}>Dashboard</NavLink>}
           <NavLink to="/customers" className={linkClass}>Customers</NavLink>
           <NavLink to="/products" className={linkClass}>Products</NavLink>
           <NavLink to="/invoices" className={linkClass}>Invoices</NavLink>
+          {isAdmin && <NavLink to="/team" className={linkClass}>Team</NavLink>}
         </nav>
       </header>
 

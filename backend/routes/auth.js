@@ -11,6 +11,8 @@ const publicUser = (u) => ({
   email: u.email,
   businessName: u.businessName,
   address: u.address,
+  role: u.role,
+  businessId: u.businessId || u._id,
 });
 
 router.post("/register", async (req, res) => {
@@ -22,8 +24,15 @@ router.post("/register", async (req, res) => {
     const exists = await User.findOne({ email: email.toLowerCase() });
     if (exists) return res.status(400).json({ message: "Email already registered" });
 
+    // Pehla user admin banta hai, baaki staff
+    
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, passwordHash, businessName, address });
+    const user = await User.create({
+      name, email, passwordHash, businessName, address,
+      role: "admin",
+    });
+    user.businessId = user._id;
+    await user.save();
     res.status(201).json({ token: signToken(user), user: publicUser(user) });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
@@ -35,6 +44,7 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email: (email || "").toLowerCase() });
     if (!user) return res.status(401).json({ message: "Invalid email or password" });
+    if (user.disabled) return res.status(403).json({ message: "Account is disabled" });
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ message: "Invalid email or password" });

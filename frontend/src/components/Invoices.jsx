@@ -1,42 +1,63 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { api, download } from "../api";
 import { useAuth } from "../context/AuthContext";
+
+const PAGE_SIZE = 10;
 
 export default function Invoices() {
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(null);
+  const [payFor, setPayFor] = useState(null);
+  const [payForm, setPayForm] = useState({ amount: "", paymentMethod: "Cash", notes: "" });
 
   const [customerId, setCustomerId] = useState("");
   const [taxRate, setTaxRate] = useState(0);
   const [status, setStatus] = useState("Pending");
+  const [dueDate, setDueDate] = useState("");
   const [items, setItems] = useState([{ productId: "", quantity: 1 }]);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickForm, setQuickForm] = useState({ name: "", phone: "", email: "", address: "" });
 
+  useEffect(() => {
+    const t = setTimeout(() => { setDebounced(search); setPage(1); }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const load = async () => {
     try {
       const [inv, cust, prod] = await Promise.all([
-        api("/api/invoices"),
-        api("/api/customers"),
-        api("/api/products"),
+        api(`/api/invoices?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(debounced)}&status=${statusFilter}&sortBy=${sortBy}`),
+        api("/api/customers?limit=100"),
+        api("/api/products?limit=100"),
       ]);
-      setInvoices(inv);
-      setCustomers(cust);
-      setProducts(prod);
+      setInvoices(inv.items);
+      setTotal(inv.total);
+      setPages(inv.pages);
+      setCustomers(cust.items);
+      setProducts(prod.items);
     } catch (err) {
       setError(err.message);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [page, debounced, statusFilter, sortBy]);
 
   const reset = () => {
-    setCustomerId(""); setTaxRate(0); setStatus("Pending");
+    setCustomerId(""); setTaxRate(0); setStatus("Pending"); setDueDate("");
     setItems([{ productId: "", quantity: 1 }]);
     setShowForm(false); setError("");
   };
@@ -62,7 +83,7 @@ export default function Invoices() {
     try {
       await api("/api/invoices", {
         method: "POST",
-        body: JSON.stringify({ customerId, taxRate: Number(taxRate), status, items }),
+        body: JSON.stringify({ customerId, taxRate: Number(taxRate), status, dueDate: dueDate || null, items }),
       });
       reset();
       load();
@@ -85,29 +106,86 @@ export default function Invoices() {
     }
   };
 
-  const toggleStatus = async (inv) => {
-    await api(`/api/invoices/${inv._id}`, {
-      method: "PUT",
-      body: JSON.stringify({ status: inv.status === "Paid" ? "Pending" : "Paid" }),
-    });
-    load();
+  const recordPayment = async (e) => {
+    e.preventDefault();
+    try {
+      await api("/api/payments", {
+        method: "POST",
+        body: JSON.stringify({
+          invoiceId: payFor._id,
+          amount: Number(payForm.amount),
+          paymentMethod: payForm.paymentMethod,
+          notes: payForm.notes,
+        }),
+      });
+      setPayFor(null);
+      setPayForm({ amount: "", paymentMethod: "Cash", notes: "" });
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const cancelInvoice = async (inv) => {
+    if (!confirm("Invoice cancel karein? Stock restore ho jayega.")) return;
+    try {
+      await api(`/api/invoices/${inv._id}/cancel`, { method: "PATCH" });
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+
+  const sendEmail = async (inv) => {
+    try {
+      const r = await api(`/api/invoices/${inv._id}/send-email`, { method: "POST", body: JSON.stringify({}) });
+      alert(r.message);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const customer = customers.find((c) => c._id === selected?.customerId);
 
+  const statusBadge = (s) => ({
+    Paid: "bg-green-100 text-green-700",
+    Partial: "bg-blue-100 text-blue-700",
+    Pending: "bg-yellow-100 text-yellow-700",
+    Overdue: "bg-red-100 text-red-700",
+    Cancelled: "bg-gray-200 text-gray-600",
+  }[s] || "bg-gray-100");
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Invoices</h2>
+        <h2 className="text-xl font-semibold">Invoices ({total})</h2>
         <button onClick={() => { reset(); setShowForm(true); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
           + Create Invoice
         </button>
       </div>
 
+      <div className="flex gap-2 mb-4">
+        <input autoComplete="off" placeholder="Search customer/item..."
+          value={search} onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 border rounded-lg px-3 py-2" />
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="border rounded-lg px-3 py-2">
+          <option value="">All Status</option><option value="Paid">Paid</option>
+          <option value="Partial">Partial</option><option value="Pending">Pending</option>
+          <option value="Overdue">Overdue</option><option value="Cancelled">Cancelled</option>
+        </select>
+        <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }} className="border rounded-lg px-3 py-2">
+          <option value="createdAt">Newest</option><option value="oldest">Oldest</option>
+          <option value="total">Total High</option><option value="customer">Customer A-Z</option>
+        </select>
+        <button onClick={() => download(`/api/invoices/export?status=${statusFilter}`, "invoices.csv")}
+          className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm">Export CSV</button>
+      </div>
+
       {showForm && (
         <form onSubmit={submit} autoComplete="off" className="bg-white rounded-xl shadow p-4 mb-6 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Customer *</label>
               <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} required
@@ -115,6 +193,22 @@ export default function Invoices() {
                 <option value="">Select customer</option>
                 {customers.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
               </select>
+              <button type="button" onClick={() => setShowQuickAdd(!showQuickAdd)}
+                className="text-blue-600 text-xs mt-1">+ New Customer</button>
+              {showQuickAdd && (
+                <form onSubmit={quickAddCustomer} autoComplete="off" className="mt-2 p-3 bg-gray-50 rounded-lg space-y-2">
+                  <input placeholder="Name *" value={quickForm.name} required
+                    onChange={(e) => setQuickForm({ ...quickForm, name: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm" />
+                  <input placeholder="Phone *" value={quickForm.phone} required
+                    onChange={(e) => setQuickForm({ ...quickForm, phone: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm" />
+                  <input placeholder="Email" value={quickForm.email}
+                    onChange={(e) => setQuickForm({ ...quickForm, email: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm" />
+                  <button type="submit" className="bg-green-600 text-white px-3 py-1.5 rounded text-sm">Save & Select</button>
+                </form>
+              )}
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Tax Rate % (GST/tax, 0 = no tax)</label>
@@ -128,6 +222,11 @@ export default function Invoices() {
                 <option value="Pending">Pending (udhaar)</option>
                 <option value="Paid">Paid</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Due Date</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2" />
             </div>
           </div>
 
@@ -184,8 +283,8 @@ export default function Invoices() {
           <thead className="bg-gray-50 text-left">
             <tr>
               <th className="p-3">Customer</th><th className="p-3">Items</th>
-              <th className="p-3">Total</th><th className="p-3">Status</th>
-              <th className="p-3">Date</th><th className="p-3"></th>
+              <th className="p-3">Total</th><th className="p-3">Paid</th><th className="p-3">Due</th>
+              <th className="p-3">Status</th><th className="p-3">Date</th><th className="p-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -193,28 +292,67 @@ export default function Invoices() {
               <tr key={inv._id} className="border-t">
                 <td className="p-3 font-medium">{inv.customerName}</td>
                 <td className="p-3">{inv.items.map((i) => `${i.productName} x${i.quantity}`).join(", ")}</td>
-                <td className="p-3 font-medium">₹{inv.grandTotal}</td>
+                <td className="p-3">₹{inv.grandTotal}</td>
+                <td className="p-3 text-green-600">₹{inv.amountPaid || 0}</td>
+                <td className="p-3 text-red-600">₹{inv.balanceDue ?? inv.grandTotal - (inv.amountPaid || 0)}</td>
                 <td className="p-3">
-                  <span className={`px-2 py-1 rounded text-xs ${inv.status === "Paid" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                    {inv.status}
-                  </span>
+                  <span className={`px-2 py-1 rounded text-xs ${statusBadge(inv.status)}`}>{inv.status}</span>
                 </td>
                 <td className="p-3">{new Date(inv.createdAt).toLocaleDateString()}</td>
-                <td className="p-3 space-x-3">
+                <td className="p-3 space-x-2 whitespace-nowrap">
                   <button onClick={() => setSelected(inv)} className="text-blue-600 hover:underline text-sm">View</button>
-                  <button onClick={() => toggleStatus(inv)} className="text-blue-600 hover:underline text-sm">
-                    {inv.status === "Paid" ? "Pending" : "Paid"}
-                  </button>
+                  {!["Paid", "Cancelled"].includes(inv.status) && (
+                    <button onClick={() => { setPayFor(inv); setPayForm({ ...payForm, amount: String(inv.balanceDue ?? inv.grandTotal - (inv.amountPaid || 0)) }); }}
+                      className="text-green-600 hover:underline text-sm">Pay</button>
+                  )}
+                  {isAdmin && inv.status !== "Cancelled" && (
+                    <button onClick={() => cancelInvoice(inv)} className="text-red-600 hover:underline text-sm">Cancel</button>
+                  )}
                 </td>
               </tr>
             ))}
             {invoices.length === 0 && (
-              <tr><td colSpan="6" className="p-6 text-center text-gray-400">No invoices yet</td></tr>
+              <tr><td colSpan="8" className="p-6 text-center text-gray-400">No invoices found</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
+      {pages > 1 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <button disabled={page === 1} onClick={() => setPage(page - 1)}
+            className="px-3 py-1 border rounded bg-white disabled:opacity-40">Prev</button>
+          <span className="px-3 py-1 text-sm">Page {page} of {pages}</span>
+          <button disabled={page === pages} onClick={() => setPage(page + 1)}
+            className="px-3 py-1 border rounded bg-white disabled:opacity-40">Next</button>
+        </div>
+      )}
+
+      {/* Payment modal */}
+      {payFor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <form onSubmit={recordPayment} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold">Record Payment — {payFor.customerName}</h3>
+              <button type="button" onClick={() => setPayFor(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+            </div>
+            <p className="text-sm text-gray-500">Balance Due: ₹{payFor.balanceDue ?? payFor.grandTotal - (payFor.amountPaid || 0)}</p>
+            <input type="number" min="0.01" step="0.01" placeholder="Amount *" value={payForm.amount} required
+              onChange={(e) => setPayForm({ ...payForm, amount: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2" />
+            <select value={payForm.paymentMethod} onChange={(e) => setPayForm({ ...payForm, paymentMethod: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2">
+              <option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Card</option>
+            </select>
+            <input placeholder="Notes (optional)" value={payForm.notes}
+              onChange={(e) => setPayForm({ ...payForm, notes: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2" />
+            <button type="submit" className="w-full bg-green-600 text-white rounded-lg py-2 text-sm">Record Payment</button>
+          </form>
+        </div>
+      )}
+
+      {/* Invoice bill modal */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div id="invoice-print" className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
@@ -235,6 +373,7 @@ export default function Invoices() {
               <div className="text-right">
                 <p>Invoice: #{selected._id.slice(-6).toUpperCase()}</p>
                 <p className="text-gray-500">{new Date(selected.createdAt).toLocaleString()}</p>
+                {selected.dueDate && <p className="text-gray-500">Due: {new Date(selected.dueDate).toLocaleDateString()}</p>}
               </div>
             </div>
 
@@ -263,16 +402,26 @@ export default function Invoices() {
               <div className="flex justify-between font-bold text-base border-t pt-2">
                 <span>Grand Total</span><span>₹{selected.grandTotal}</span>
               </div>
+              <div className="flex justify-between text-green-700">
+                <span>Amount Paid</span><span>₹{selected.amountPaid || 0}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-red-700">
+                <span>Balance Due</span><span>₹{selected.balanceDue ?? selected.grandTotal - (selected.amountPaid || 0)}</span>
+              </div>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className={`px-3 py-1 rounded text-sm font-medium ${selected.status === "Paid" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+              <span className={`px-3 py-1 rounded text-sm font-medium ${statusBadge(selected.status)}`}>
                 {selected.status}
               </span>
-              <button onClick={() => window.print()}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-                Print
-              </button>
+              <div className="flex gap-2">
+                
+                <button onClick={() => sendEmail(selected)} className="border border-blue-600 text-blue-600 px-3 py-2 rounded-lg text-sm hover:bg-blue-50">Email</button>
+                <button onClick={() => window.print()}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                  Print
+                </button>
+              </div>
             </div>
           </div>
         </div>

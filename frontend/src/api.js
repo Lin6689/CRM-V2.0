@@ -13,4 +13,23 @@ export async function api(path, options = {}) {
   return data;
 }
 
+// File download (PDF/CSV) — blob fetch with token
+export async function download(path, filename) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || "Download failed");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const imageUrl = (p) => (p?.startsWith("http") ? p : p ? `${API}${p}` : "");

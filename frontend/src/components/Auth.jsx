@@ -13,7 +13,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  if (user) return <Navigate to="/customers" />;
+  if (user) return <Navigate to="/dashboard" />;
 
   const set = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -51,7 +51,7 @@ export default function Auth() {
         setForm({ ...form, password: "" });
       } else {
         login(data.token, data.user);
-        navigate("/customers");
+        navigate("/dashboard");
       }
     } catch (err) {
       setError(err.message);
