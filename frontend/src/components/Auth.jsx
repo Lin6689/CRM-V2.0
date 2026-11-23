@@ -12,6 +12,7 @@ export default function Auth() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [confirmPass, setConfirmPass] = useState("");
 
   if (user) return <Navigate to="/dashboard" />;
 
@@ -36,6 +37,7 @@ export default function Auth() {
       if (!/[A-Z]/.test(p)) errs.push("Password must have 1 capital letter");
       if (!/[0-9]/.test(p)) errs.push("Password must have 1 number");
       if (!/[^A-Za-z0-9]/.test(p)) errs.push("Password must have 1 special character");
+      if (!isLogin && form.password !== confirmPass) errs.push("Passwords do not match");
       if (errs.length) {
         setError(errs.join("\n"));
         return;
@@ -93,7 +95,17 @@ export default function Auth() {
               {showPass ? "Hide" : "Show"}
             </button>
           </div>
-
+          {!isLogin && (
+            <div className="relative">
+              <input type={showPass ? "text" : "password"} placeholder="Confirm Password" value={confirmPass}
+                onChange={(e) => setConfirmPass(e.target.value)} required minLength={6}
+                className="w-full border rounded-lg px-3 py-2 pr-10" />
+              <button type="button" onClick={() => setShowPass(!showPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+                {showPass ? "Hide" : "Show"}
+              </button>
+            </div>
+          )}
           {success && <p className="text-green-600 text-sm">{success}</p>}
 
           {error && (

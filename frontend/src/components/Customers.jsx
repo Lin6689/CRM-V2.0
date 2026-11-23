@@ -29,7 +29,7 @@ export default function Customers() {
 
   const load = async () => {
     try {
-      const data = await api(`/api/customers?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(debounced)}`);
+      const data = await api(`/api/customers?page=${page}&limit=${PAGE_SIZE}&search=${encodeURIComponent(debounced)}&sortBy=${sortBy}`);
       setCustomers(data.items);
       setTotal(data.total);
       setPages(data.pages);

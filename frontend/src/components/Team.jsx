@@ -8,6 +8,8 @@ export default function Team() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", businessName: "", address: "" });
   const [error, setError] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
 
   const load = () => api("/api/users").then(setUsers).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
@@ -44,7 +46,8 @@ export default function Team() {
         <form onSubmit={submit} autoComplete="off" className="bg-white rounded-xl shadow p-4 mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
           <input placeholder="Name *" value={form.name} required onChange={(e) => setForm({ ...form, name: e.target.value })} className="border rounded-lg px-3 py-2" />
           <input placeholder="Email *" value={form.email} required onChange={(e) => setForm({ ...form, email: e.target.value })} className="border rounded-lg px-3 py-2" />
-          <input placeholder="Password *" value={form.password} required minLength={6} onChange={(e) => setForm({ ...form, password: e.target.value })} className="border rounded-lg px-3 py-2" />
+          <div className="relative"><input placeholder="Password *" type={showPass?"text":"password"} value={form.password} required minLength={6} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full border rounded-lg px-3 py-2 pr-10" /><button type="button" onClick={()=>setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{showPass?"Hide":"Show"}</button></div>
+          <div className="relative"><input placeholder="Confirm Password *" type={showPass?"text":"password"} value={confirmPass} required minLength={6} onChange={(e)=>setConfirmPass(e.target.value)} className="w-full border rounded-lg px-3 py-2 pr-10" /><button type="button" onClick={()=>setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{showPass?"Hide":"Show"}</button></div>
           <input placeholder="Shop name *" value={form.businessName} required onChange={(e) => setForm({ ...form, businessName: e.target.value })} className="border rounded-lg px-3 py-2" />
           <input placeholder="Shop address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="border rounded-lg px-3 py-2" />
           <div className="flex gap-2">

@@ -94,6 +94,10 @@ router.post("/", authorizeRoles("admin"), upload.single("image"), async (req, re
     if (!productName || price === undefined || stockQuantity === undefined) {
       return res.status(400).json({ message: "productName, price and stockQuantity are required" });
     }
+    if (sku) {
+      const dupSku = await Product.findOne({ sku, owner: req.bizId, _id: { $ne: req.params?.id } });
+      if (dupSku) return res.status(400).json({ message: "SKU already exists" });
+    }
     const stock = Number(stockQuantity);
     if (stock < 0) return res.status(400).json({ message: "Stock cannot be negative" });
 
@@ -117,6 +121,10 @@ router.put("/:id", authorizeRoles("admin"), upload.single("image"), async (req, 
     const updates = { ...req.body };
     delete updates.image;
     delete updates.owner;
+    if (updates.sku) {
+      const dupSku = await Product.findOne({ sku: updates.sku, owner: req.bizId, _id: { $ne: req.params.id } });
+      if (dupSku) return res.status(400).json({ message: "SKU already exists" });
+    }
     if (updates.stockQuantity !== undefined && Number(updates.stockQuantity) < 0) {
       return res.status(400).json({ message: "Stock cannot be negative" });
     }
