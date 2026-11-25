@@ -77,8 +77,11 @@ export default function Invoices() {
   const taxAmount = (subtotal * Number(taxRate)) / 100;
   const grandTotal = subtotal + taxAmount;
 
+  const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
+    if (busy) return;
+    setBusy(true);
     setError("");
     try {
       await api("/api/invoices", {
@@ -89,6 +92,8 @@ export default function Invoices() {
       load();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -272,7 +277,7 @@ export default function Invoices() {
           {error && <p className="text-red-600 text-sm">{error}</p>}
 
           <div className="flex gap-2">
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">Save Invoice</button>
+            <button type="submit" disabled={busy} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">{busy ? "Saving..." : "Save Invoice"}</button>
             <button type="button" onClick={reset} className="bg-gray-200 px-4 py-2 rounded-lg text-sm">Cancel</button>
           </div>
         </form>

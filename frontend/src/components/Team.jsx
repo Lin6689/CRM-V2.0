@@ -14,8 +14,11 @@ export default function Team() {
   const load = () => api("/api/users").then(setUsers).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
 
+  const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
+    if (busy) return;
+    setBusy(true);
     setError("");
     try {
       await api("/api/users", { method: "POST", body: JSON.stringify(form) });
@@ -24,6 +27,8 @@ export default function Team() {
       load();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -51,7 +56,7 @@ export default function Team() {
           <input placeholder="Shop name *" value={form.businessName} required onChange={(e) => setForm({ ...form, businessName: e.target.value })} className="border rounded-lg px-3 py-2" />
           <input placeholder="Shop address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="border rounded-lg px-3 py-2" />
           <div className="flex gap-2">
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">Create Staff</button>
+            <button type="submit" disabled={busy} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">{busy ? "Creating..." : "Create Staff"}</button>
             <button type="button" onClick={() => setShowForm(false)} className="bg-gray-200 px-4 py-2 rounded-lg text-sm">Cancel</button>
           </div>
           {error && <p className="text-red-600 text-sm md:col-span-3">{error}</p>}

@@ -45,8 +45,11 @@ export default function Products() {
     setForm(empty); setEditingId(null); setShowForm(false); setError(""); setPreview("");
   };
 
+  const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
+    if (busy) return;
+    setBusy(true);
     setError("");
     try {
       const fd = new FormData();
@@ -65,6 +68,8 @@ export default function Products() {
       load();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -123,7 +128,7 @@ export default function Products() {
             {preview && <img src={preview} alt="preview" className="mt-2 h-16 w-16 object-cover rounded border" />}
           </div>
           <div className="flex gap-2 items-start">
-            <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">{editingId ? "Update" : "Save"}</button>
+            <button type="submit" disabled={busy} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50">{busy ? "Saving..." : editingId ? "Update" : "Save"}</button>
             <button type="button" onClick={reset} className="bg-gray-200 px-4 py-2 rounded-lg text-sm">Cancel</button>
           </div>
           {error && <p className="text-red-600 text-sm md:col-span-3">{error}</p>}
