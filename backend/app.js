@@ -17,7 +17,9 @@ const userRoutes = require("./routes/users");
 const app = express();
 
 // Security hardening
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 app.use(cors({ origin: process.env.FRONTEND_URL || true }));
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
