@@ -97,12 +97,6 @@ Staff accounts are created by each client admin from the **Team** page.
 
 Frontend: `VITE_API_URL` — backend base URL.
 
-## Demo Credentials
-
-| Role | Email | Password |
-|---|---|---|
-| Super Admin | admin@crm.com | Admin@123 |
-| Client | client@gmail.com | Client@123 |
 
 ## API Overview
 
