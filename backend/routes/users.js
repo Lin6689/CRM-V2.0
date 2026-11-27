@@ -20,7 +20,8 @@ const publicUser = (u) => ({
 // Admin: saare users list karo
 router.get("/", async (req, res) => {
   try {
-    const users = await User.find({ businessId: req.user.businessId || req.user.id }).sort({ createdAt: -1 });
+    const filter = req.user.role === "superadmin" ? {} : { businessId: req.user.businessId || req.user.id };
+    const users = await User.find(filter).sort({ createdAt: -1 });
     res.json(users.map(publicUser));
   } catch {
     res.status(500).json({ message: "Server error" });
@@ -28,19 +29,22 @@ router.get("/", async (req, res) => {
 });
 
 // Admin: staff account banao
-router.post("/", async (req, res) => {
+router.post("/", authorizeRoles("admin"), async (req, res) => {
   try {
-    const { name, email, password, businessName, address } = req.body;
-    if (!name || !email || !password || !businessName) {
-      return res.status(400).json({ message: "name, email, password, businessName required" });
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "name, email, password required" });
     }
     const exists = await User.findOne({ email: email.toLowerCase() });
     if (exists) return res.status(400).json({ message: "Email already registered" });
 
+    const admin = await User.findById(req.user.id);
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
-      name, email, passwordHash, businessName,
-      address: address || "", role: "staff", createdBy: req.user.id, businessId: req.user.businessId || req.user.id,
+      name, email, passwordHash,
+      businessName: admin.businessName,
+      address: admin.address || "",
+      role: "staff", createdBy: req.user.id, businessId: req.user.businessId || req.user.id,
     });
     res.status(201).json(publicUser(user));
   } catch {
@@ -49,7 +53,7 @@ router.post("/", async (req, res) => {
 });
 
 // Admin: staff disable/enable karo
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", authorizeRoles("admin"), async (req, res) => {
   try {
     const { disabled } = req.body;
     if (req.params.id === req.user.id) {
