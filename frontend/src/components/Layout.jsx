@@ -49,7 +49,7 @@ export default function Layout() {
           <div>
             <h1 className="font-bold text-lg">{user?.businessName || "Mini CRM"}</h1>
             <p className="text-xs text-gray-500">
-              {user?.name} • {user?.email} • <span className="capitalize">{user?.role}</span>
+              {user?.name} • {user?.email} • <span>{user?.role === "superadmin" ? "Admin" : user?.role === "admin" ? "Client" : "Staff"}</span>
             </p>
           </div>
           <div className="flex gap-4 items-center">
