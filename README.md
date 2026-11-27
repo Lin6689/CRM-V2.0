@@ -1,6 +1,6 @@
 # MiniCRM — Billing & Invoicing App
 
-A full-stack billing/CRM web app (Vyapar-style) with customer management, invoicing, payments ledger (Khata), analytics dashboard, RBAC, and team management.
+A full-stack billing/CRM web app (Vyapar-style) with client management, staff accounts, invoicing, payments ledger (Khata), analytics dashboard, and role-based access control.
 
 ## Tech Stack
 
@@ -10,23 +10,33 @@ A full-stack billing/CRM web app (Vyapar-style) with customer management, invoic
 - **Auth:** JWT + bcryptjs
 - **Uploads:** Multer + Cloudinary (local fallback)
 - **Email:** Nodemailer (Gmail SMTP) + PDFKit invoice PDFs
-- **Security:** Helmet, rate limiting, CORS, role-based access control
+- **Security:** Helmet, rate limiting, CORS, RBAC
+
+## Roles (3-tier model)
+
+| Role | Who | Access |
+|---|---|---|
+| `superadmin` | Platform owner (you) | Clients page — sees all client businesses, no billing data |
+| `admin` | Client / business owner | Full access to own business: dashboard, customers, products, invoices, team, analytics |
+| `staff` | Client's employee | Limited: view products, add customers, create invoices, record payments — no delete/edit/cancel |
+
+- **No public registration** — login only. Accounts are created via `backend/seed.js`.
+- Staff inherits the client's `businessName` and `address` automatically (cannot edit).
+- Each business's data is isolated by `businessId`.
 
 ## Features
 
-- User registration/login (JWT auth, bcrypt hashing)
-- Role-based access: **Admin** (full access) vs **Staff** (billing only)
-- Multi-business data isolation (`businessId` scoping)
-- Customer CRUD + ledger (Khata) with payment history
-- Product CRUD with image upload (Cloudinary) + stock management
-- Invoice generation with auto tax calculation, stock deduction
-- Partial/full payments, due dates, overdue detection
+- Login with JWT auth (bcrypt hashed passwords)
+- Super admin Clients dashboard: all clients, staff counts, join dates
+- Client admin: customers/products/invoices CRUD, team management, analytics
+- Staff: billing operations only (enforced on backend + frontend)
+- Invoice generation: auto tax, stock deduction, partial payments, due dates, overdue
 - Invoice cancellation with stock restore (MongoDB transactions)
-- Analytics dashboard: revenue KPIs, 6-month sales trend, top products, low-stock alerts
-- Search, filters, sorting, pagination on all lists
-- CSV export (invoices/customers)
-- Email invoice PDFs to customers via Gmail SMTP
-- Team management: admin creates/disables staff accounts
+- Khata/ledger: payment history per customer
+- Analytics dashboard: revenue KPIs, 6-month trend, top products, low-stock alerts
+- Search, filters, sorting, pagination, CSV export
+- Email invoice PDFs via Gmail SMTP
+- Product images on Cloudinary (local fallback)
 
 ## Project Structure
 
@@ -34,14 +44,15 @@ A full-stack billing/CRM web app (Vyapar-style) with customer management, invoic
 ├── backend/
 │   ├── app.js               # Express app, middleware, static uploads
 │   ├── bin/www              # Server entry point
-│   ├── models/              # User, Customer, Product, Invoice, Payment (Mongoose)
+│   ├── seed.js              # Account seeder (superadmin + clients)
+│   ├── models/              # User, Customer, Product, Invoice, Payment
 │   ├── routes/              # auth, customers, products, invoices, payments, analytics, users
 │   └── middleware/auth.js   # JWT verify + authorizeRoles
 └── frontend/
     └── src/
-        ├── api.js           # API client (fetch wrapper, JWT header, downloads)
-        ├── context/         # AuthContext (React Context for auth state)
-        └── components/      # Auth, Layout, Dashboard, Customers, Products, Invoices, Team
+        ├── api.js           # API client (VITE_API_URL env)
+        ├── context/         # AuthContext
+        └── components/      # Auth(login), Layout, Clients, Dashboard, Customers, Products, Invoices, Team
 ```
 
 ## Setup
@@ -51,8 +62,8 @@ A full-stack billing/CRM web app (Vyapar-style) with customer management, invoic
 ```bash
 cd backend
 npm install
-cp .env.example .env   # fill in values
-npm start              # runs on http://localhost:3000
+npm run seed     # creates superadmin + sample clients (edit CLIENTS array first)
+npm start        # http://localhost:3000
 ```
 
 ### Frontend
@@ -60,49 +71,56 @@ npm start              # runs on http://localhost:3000
 ```bash
 cd frontend
 npm install
-npm run dev            # runs on http://localhost:5173
+npm run dev      # http://localhost:5173
 ```
+
+## Creating Accounts
+
+Edit `backend/seed.js`:
+
+- `SUPER_ADMIN` — your platform admin credentials
+- `CLIENTS` array — each client: `name`, `email`, `password`, `businessName`, `address`
+
+Then run `npm run seed`. Existing emails are skipped; re-running is safe.
+
+Staff accounts are created by each client admin from the **Team** page.
 
 ## Environment Variables (backend/.env)
 
 | Variable | Description |
 |---|---|
 | `MONGODB_URI` | MongoDB Atlas connection string |
-| `JWT_SECRET` | Secret for signing JWT tokens |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name (optional — local fallback) |
-| `CLOUDINARY_API_KEY` | Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
-| `GMAIL_USER` | Gmail address for sending invoice emails |
-| `GMAIL_APP_PASSWORD` | Gmail App Password (16-char) |
+| `JWT_SECRET` | JWT signing secret |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Image uploads |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Invoice email sending |
 | `FRONTEND_URL` | Allowed CORS origin (production) |
 
-Frontend env: `VITE_API_URL` — backend base URL (defaults to `http://localhost:3000`).
+Frontend: `VITE_API_URL` — backend base URL.
 
 ## Demo Credentials
 
 | Role | Email | Password |
 |---|---|---|
-| Admin | test@example.com | 123456 |
-| Staff | user2@gmail.com | Pass@123 |
+| Super Admin | admin@crm.com | Admin@123 |
+| Client | client@gmail.com | Client@123 |
 
 ## API Overview
 
-| Endpoint | Description |
-|---|---|
-| `POST /api/auth/register` | Register new business (becomes admin) |
-| `POST /api/auth/login` | Login → JWT token |
-| `GET/POST /api/customers` | Customer CRUD + ledger |
-| `GET/POST /api/products` | Product CRUD + image upload |
-| `GET/POST /api/invoices` | Invoice create/list, cancel, PDF, email |
-| `POST /api/invoices/:id/payments` | Record payment (transaction-safe) |
-| `GET /api/analytics/summary` | Dashboard KPIs + chart data |
-| `GET/POST /api/users` | Team management (admin only) |
-| `GET /api/*/export` | CSV export |
+| Endpoint | Access | Description |
+|---|---|---|
+| `POST /api/auth/login` | Public | Login → JWT |
+| `GET /api/users` | superadmin: all / admin: own business | User listing |
+| `POST /api/users` | admin | Create staff |
+| `GET/POST /api/customers` | admin, staff | Customer CRUD + ledger |
+| `GET/POST /api/products` | admin write / staff read | Product CRUD + images |
+| `GET/POST /api/invoices` | admin, staff | Invoice create/list/cancel/PDF/email |
+| `POST /api/invoices/:id/payments` | admin, staff | Record payment |
+| `GET /api/analytics/summary` | admin | Dashboard data |
+| `GET /api/*/export` | admin, staff | CSV export |
 
-## How It Works (key concepts)
+## Key Concepts
 
-- **Auth:** login issues a signed JWT → stored in `localStorage` → sent as `Authorization: Bearer` header → verified by `authMiddleware` on every protected route.
-- **RBAC:** `role` field in JWT payload; `authorizeRoles('admin')` middleware returns 403 for staff on restricted routes.
-- **Data isolation:** every record stores `businessId`; all queries filter by `req.bizId` so each business sees only its own data.
-- **Invoice math:** computed server-side — line totals → subtotal → tax% → grandTotal; stock deducted via `$inc`; payments wrapped in a MongoDB transaction so invoice + customer balance stay consistent.
-- **Analytics:** MongoDB aggregation pipelines (`$match` → `$group` → `$sort`) compute revenue, monthly trends, top products server-side.
+- **Auth:** JWT issued on login → `Authorization: Bearer` header → `authMiddleware` verifies → `authorizeRoles()` enforces RBAC.
+- **Data isolation:** every record stores `businessId`; queries filter by `req.bizId`.
+- **Invoice math:** server-side — DB prices, line totals → subtotal → tax → grandTotal; stock via `$inc`; payments in MongoDB transactions.
+- **Analytics:** MongoDB aggregation pipelines (`$match` → `$group` → `$sort`).
