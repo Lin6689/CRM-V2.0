@@ -4,7 +4,7 @@ const User = require("../models/User");
 const { authMiddleware, authorizeRoles } = require("../middleware/auth");
 
 const router = express.Router();
-router.use(authMiddleware, authorizeRoles("admin"));
+router.use(authMiddleware);
 
 const publicUser = (u) => ({
   id: u._id,
@@ -13,6 +13,7 @@ const publicUser = (u) => ({
   businessName: u.businessName,
   role: u.role,
   disabled: u.disabled,
+  businessId: u.businessId,
   createdAt: u.createdAt,
 });
 

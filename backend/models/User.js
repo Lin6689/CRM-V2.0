@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     businessName: { type: String, required: true },
     address: { type: String, default: "" },
-    role: { type: String, enum: ["admin", "staff"], default: "staff" },
+    role: { type: String, enum: ["superadmin", "admin", "staff"], default: "staff" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     disabled: { type: Boolean, default: false },
     businessId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },

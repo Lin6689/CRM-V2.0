@@ -11,6 +11,7 @@ export default function Layout() {
   const [error, setError] = useState("");
 
   const isAdmin = user?.role === "admin";
+  const isSuper = user?.role === "superadmin";
 
   const handleLogout = () => {
     logout();
@@ -61,10 +62,11 @@ export default function Layout() {
           </div>
         </div>
         <nav className="max-w-6xl mx-auto px-4 flex gap-4">
+          {isSuper && <NavLink to="/clients" className={linkClass}>Clients</NavLink>}
           {isAdmin && <NavLink to="/dashboard" className={linkClass}>Dashboard</NavLink>}
-          <NavLink to="/customers" className={linkClass}>Customers</NavLink>
-          <NavLink to="/products" className={linkClass}>Products</NavLink>
-          <NavLink to="/invoices" className={linkClass}>Invoices</NavLink>
+          {!isSuper && <NavLink to="/customers" className={linkClass}>Customers</NavLink>}
+          {!isSuper && <NavLink to="/products" className={linkClass}>Products</NavLink>}
+          {!isSuper && <NavLink to="/invoices" className={linkClass}>Invoices</NavLink>}
           {isAdmin && <NavLink to="/team" className={linkClass}>Team</NavLink>}
         </nav>
       </header>

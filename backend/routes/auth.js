@@ -15,30 +15,6 @@ const publicUser = (u) => ({
   businessId: u.businessId || u._id,
 });
 
-router.post("/register", async (req, res) => {
-  try {
-    const { name, email, password, businessName, address } = req.body;
-    if (!name || !email || !password || !businessName || !address) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-    const exists = await User.findOne({ email: email.toLowerCase() });
-    if (exists) return res.status(400).json({ message: "Email already registered" });
-
-    // Pehla user admin banta hai, baaki staff
-    
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      name, email, passwordHash, businessName, address,
-      role: "admin",
-    });
-    user.businessId = user._id;
-    await user.save();
-    res.status(201).json({ token: signToken(user), user: publicUser(user) });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
