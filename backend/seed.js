@@ -21,6 +21,21 @@ const CLIENTS = [
     businessName: "Client Business Name",
     address: "Client Shop Address",
   },
+  {
+  name: "Owner Name",
+  email: "manish@gmail.com",
+  password: "Manish@123",
+  businessName: "Shop Name",
+  address: "Shop Address",
+},
+{
+  name: "ketan",
+  email: "ketan@gmail.com",
+  password: "Ketann@123",
+  businessName: "Shop Name",
+  address: "Shop Address",
+},
+
 ];
 
 (async () => {
