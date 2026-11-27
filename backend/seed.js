@@ -7,7 +7,7 @@ require("dotenv").config();
 
 const SUPER_ADMIN = {
   name: "Super Admin",
-  email: "admin@crm.com",
+  email: "",
   password: "Admin@123",
   businessName: "CRM HQ",
 };
@@ -35,6 +35,13 @@ const CLIENTS = [
   businessName: "Shop Name",
   address: "Shop Address",
 },
+{
+  name: "ketands",
+  email: "ketands@gmail.com",
+  password: "Ketannsd@123",
+  businessName: "Shop Name",
+  address: "Shop Address",
+},
 
 ];
 
@@ -53,11 +60,11 @@ const CLIENTS = [
       passwordHash: saHash,
       businessName: SUPER_ADMIN.businessName,
       role: "superadmin",
-      businessId: new mongoose.Types.ObjectId(),
     },
     { upsert: true, new: true }
   );
-  if (!sa.businessId) { sa.businessId = sa._id; await sa.save(); }
+  sa.businessId = sa._id;
+  await sa.save();
   console.log(`Super admin ready: ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`);
 
   // Clients
